@@ -1,0 +1,16 @@
+<form id="create-form" hx-post="/deliveries" hx-target="#create-panel" hx-swap="innerHTML" hx-indicator="#create-form">
+  {% if form_error %}<div class="error">{{ form_error }}</div>{% endif %}
+  <label>Destination URL</label>
+  <input name="destination_url" value="{{ demo_destination }}" required>
+  <label>Method</label>
+  <select name="method">
+    {% for m in ["POST","PUT","PATCH","DELETE","GET"] %}<option value="{{ m }}">{{ m }}</option>{% endfor %}
+  </select>
+  <label>Headers (JSON object)</label>
+  <textarea name="headers" style="min-height:60px">{"X-Signature": "demo"}</textarea>
+  <label>JSON payload</label>
+  <textarea name="payload">{"event": "payment.succeeded", "order_id": "ORD-1001", "amount": 4200, "currency": "AED"}</textarea>
+  <label>Timeout, seconds</label>
+  <input name="timeout_seconds" type="number" step="0.1" min="0.1" value="10">
+  <button type="submit">Send <span class="spinner">…</span></button>
+</form>

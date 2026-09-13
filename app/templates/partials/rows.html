@@ -1,0 +1,9 @@
+<h2>Deliveries <span class="muted" id="total-count">({{ total }})</span></h2>
+<table>
+  <thead>
+    <tr><th>Created</th><th>Status</th><th>Method</th><th>Destination</th><th>HTTP</th><th>Attempts</th><th></th></tr>
+  </thead>
+  <tbody id="delivery-rows">
+    {% include "partials/rows_body.html" %}
+  </tbody>
+</table>

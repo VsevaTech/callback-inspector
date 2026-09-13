@@ -1,0 +1,13 @@
+{% for d in deliveries %}
+<tr>
+  <td class="mono muted">{{ d.created_at.strftime("%Y-%m-%d %H:%M:%S") }}</td>
+  <td><span class="badge {{ d.status.value }}">{{ d.status.value }}</span></td>
+  <td class="mono">{{ d.method }}</td>
+  <td class="mono" title="{{ d.destination_url }}">{{ d.destination_url[:60] }}{% if d.destination_url|length > 60 %}…{% endif %}</td>
+  <td class="mono">{{ d.last_http_status if d.last_http_status is not none else "—" }}</td>
+  <td class="mono">{{ d.attempt_count }}</td>
+  <td><a href="/deliveries/{{ d.id }}">details</a></td>
+</tr>
+{% else %}
+<tr><td colspan="7" class="muted">No deliveries yet — send one from the form.</td></tr>
+{% endfor %}

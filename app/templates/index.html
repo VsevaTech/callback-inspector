@@ -1,0 +1,13 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="grid">
+  <section class="panel" id="create-panel">
+    <h2>Send a callback</h2>
+    {% include "partials/form.html" %}
+  </section>
+
+  <section class="panel" id="deliveries-panel" hx-get="/deliveries/rows" hx-trigger="every 5s" hx-swap="innerHTML">
+    {% include "partials/rows.html" %}
+  </section>
+</div>
+{% endblock %}

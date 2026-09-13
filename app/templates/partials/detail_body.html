@@ -1,0 +1,47 @@
+<section class="panel">
+  <h2>Delivery <span class="mono">{{ delivery.id }}</span></h2>
+  {% if error %}<div class="error">{{ error }}</div>{% endif %}
+  <dl class="kv">
+    <dt>Status</dt><dd><span class="badge {{ delivery.status.value }}">{{ delivery.status.value }}</span></dd>
+    <dt>Destination</dt><dd class="mono">{{ delivery.method }} {{ delivery.destination_url }}</dd>
+    <dt>Created</dt><dd class="mono">{{ delivery.created_at.isoformat() }}</dd>
+    <dt>Delivered at</dt><dd class="mono">{{ delivery.delivered_at.isoformat() if delivery.delivered_at else "—" }}</dd>
+    <dt>Attempts</dt><dd class="mono">{{ delivery.attempt_count }}</dd>
+    <dt>Last HTTP status</dt><dd class="mono">{{ delivery.last_http_status if delivery.last_http_status is not none else "—" }}</dd>
+    <dt>Last error</dt><dd class="mono">{{ delivery.last_error or "—" }}</dd>
+    <dt>Timeout</dt><dd class="mono">{{ delivery.timeout_seconds }} s</dd>
+  </dl>
+  <details><summary>Configured headers</summary><pre class="mono">{{ delivery.headers | pretty_json }}</pre></details>
+  <details open><summary>Payload</summary><pre class="mono">{{ delivery.payload | pretty_json }}</pre></details>
+
+  {% if delivery.status.value == "failed" %}
+  <form hx-post="/deliveries/{{ delivery.id }}/retry" hx-target="#detail-body" hx-swap="innerHTML" hx-indicator="this" style="margin-top:12px">
+    <button type="submit" id="retry-button">Retry now <span class="spinner">…</span></button>
+  </form>
+  {% endif %}
+</section>
+
+<section class="panel" style="margin-top:20px">
+  <h2>Attempt history ({{ delivery.attempts | length }})</h2>
+  {% for a in delivery.attempts | reverse %}
+  <div class="attempt" id="attempt-{{ a.attempt_number }}">
+    <h3>#{{ a.attempt_number }}
+      <span class="badge {{ a.status.value }}">{{ a.status.value }}</span>
+      <span class="mono muted">{{ a.started_at.strftime("%Y-%m-%d %H:%M:%S") }} UTC</span>
+      <span class="mono">HTTP {{ a.http_status if a.http_status is not none else "—" }}</span>
+      <span class="mono muted">{{ a.latency_ms if a.latency_ms is not none else "—" }} ms</span>
+    </h3>
+    {% if a.error %}<div class="error mono">{{ a.error }}</div>{% endif %}
+    <details><summary>Request → {{ a.method }} {{ a.destination_url }}</summary>
+      <pre class="mono">{{ a.request_headers | pretty_json }}</pre>
+      <pre class="mono">{{ a.request_body | pretty_json }}</pre>
+    </details>
+    <details {% if loop.first %}open{% endif %}><summary>Response</summary>
+      <pre class="mono">{{ a.response_headers | pretty_json }}</pre>
+      <pre class="mono">{{ a.response_body | pretty_json if a.response_body else "(no response)" }}</pre>
+    </details>
+  </div>
+  {% else %}
+  <p class="muted">No attempts recorded.</p>
+  {% endfor %}
+</section>

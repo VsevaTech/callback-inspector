@@ -1,0 +1,9 @@
+<h2>Send a callback</h2>
+<div class="{% if delivery.status.value == 'delivered' %}muted{% else %}error{% endif %}" style="margin-bottom:10px">
+  Delivery <a href="/deliveries/{{ delivery.id }}" class="mono">{{ delivery.id[:12] }}</a>
+  — <span class="badge {{ delivery.status.value }}">{{ delivery.status.value }}</span>
+  {% if delivery.last_http_status %} HTTP {{ delivery.last_http_status }}{% endif %}
+  {% if delivery.last_error %}<br><span class="mono">{{ delivery.last_error }}</span>{% endif %}
+</div>
+{% include "partials/form.html" %}
+<div hx-get="/deliveries/rows" hx-trigger="load" hx-target="#deliveries-panel" hx-swap="innerHTML"></div>
