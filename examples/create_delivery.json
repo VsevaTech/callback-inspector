@@ -1,0 +1,16 @@
+{
+  "destination_url": "http://receiver:8001/callback",
+  "method": "POST",
+  "headers": {
+    "X-Signature": "demo-signature",
+    "X-Partner-Id": "acme"
+  },
+  "payload": {
+    "event": "payment.succeeded",
+    "order_id": "ORD-1001",
+    "amount": 4200,
+    "currency": "AED",
+    "occurred_at": "2026-09-13T10:15:00Z"
+  },
+  "timeout_seconds": 5
+}
