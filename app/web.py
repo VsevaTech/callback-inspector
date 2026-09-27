@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+from datetime import UTC, datetime
 from pathlib import Path
 
 import httpx
@@ -12,11 +13,11 @@ from fastapi.templating import Jinja2Templates
 from pydantic import ValidationError
 from sqlalchemy.orm import Session
 
-from app import service
-from app.config import settings
+from app import config, service, signing
 from app.database import get_db
 from app.http_client import get_http_client
 from app.schemas import DeliveryCreate
+from app.security import InvalidIdempotencyKey, redacted_header_names, validate_idempotency_key
 
 router = APIRouter(include_in_schema=False)
 templates = Jinja2Templates(directory=str(Path(__file__).parent / "templates"))
@@ -33,7 +34,38 @@ def _pretty_json(value) -> str:
     return json.dumps(value, indent=2, ensure_ascii=False)
 
 
+def _shorten(value: str | None, limit: int = 64) -> str:
+    if not value:
+        return ""
+    return value if len(value) <= limit else value[: limit - 1] + "…"
+
+
+def _ts_iso(value: int | None) -> str:
+    if value is None:
+        return ""
+    return datetime.fromtimestamp(value, UTC).isoformat()
+
+
+def _security_summary(delivery) -> dict:
+    """What the Security panel shows. Never contains secret values — only names and modes."""
+    signed = [a for a in delivery.attempts if a.signature_algorithm]
+    if signed:
+        signing_label = signed[-1].signature_algorithm
+    elif config.settings.signing_enabled:
+        signing_label = f"{signing.ALGORITHM} (enabled, no signed attempt yet)"
+    else:
+        signing_label = "disabled"
+    return {
+        "redacted_headers": redacted_header_names(delivery.headers),
+        "signing": signing_label,
+        "idempotency_key": delivery.idempotency_key,
+    }
+
+
 templates.env.filters["pretty_json"] = _pretty_json
+templates.env.filters["shorten"] = _shorten
+templates.env.filters["ts_iso"] = _ts_iso
+templates.env.globals["security_summary"] = _security_summary
 
 
 def _is_htmx(request: Request) -> bool:
@@ -46,7 +78,7 @@ def index(request: Request, db: Session = Depends(get_db)):
     return templates.TemplateResponse(
         request,
         "index.html",
-        {"deliveries": items, "total": total, "demo_destination": settings.demo_destination, "form_error": None},
+        {"deliveries": items, "total": total, "demo_destination": config.settings.demo_destination, "form_error": None},
     )
 
 
@@ -63,7 +95,8 @@ async def create_from_form(
     method: str = Form("POST"),
     headers: str = Form(""),
     payload: str = Form(""),
-    timeout_seconds: float = Form(settings.default_timeout),
+    timeout_seconds: float = Form(config.settings.default_timeout),
+    idempotency_key: str = Form(""),
     db: Session = Depends(get_db),
     client: httpx.AsyncClient = Depends(get_http_client),
 ):
@@ -84,13 +117,35 @@ async def create_from_form(
         ctx = {"deliveries": items, "total": total, "demo_destination": destination_url, "form_error": str(exc)}
         return templates.TemplateResponse(request, "partials/form.html" if _is_htmx(request) else "index.html", ctx)
 
-    delivery = service.create_delivery(db, data)
-    await service.send_attempt(db, delivery, client)
+    def _form_error(message: str):
+        items, total = service.list_deliveries(db, limit=100)
+        ctx = {"deliveries": items, "total": total, "demo_destination": destination_url, "form_error": message}
+        return templates.TemplateResponse(request, "partials/form.html" if _is_htmx(request) else "index.html", ctx)
+
+    replay = False
+    if idempotency_key:
+        try:
+            validate_idempotency_key(idempotency_key)
+            delivery, created = service.create_or_get_delivery(db, data, idempotency_key)
+        except InvalidIdempotencyKey as exc:
+            return _form_error(f"INVALID_IDEMPOTENCY_KEY: {exc}")
+        except service.IdempotencyConflict as exc:
+            return _form_error(f"IDEMPOTENCY_CONFLICT: {exc}")
+        replay = not created
+    else:
+        delivery = service.create_delivery(db, data)
+    if not replay:
+        await service.send_attempt(db, delivery, client)
     delivery = service.get_delivery(db, delivery.id)
     return templates.TemplateResponse(
         request,
         "partials/created.html",
-        {"delivery": delivery, "demo_destination": settings.demo_destination, "form_error": None},
+        {
+            "delivery": delivery,
+            "demo_destination": config.settings.demo_destination,
+            "form_error": None,
+            "replay": replay,
+        },
     )
 
 
@@ -115,7 +170,7 @@ async def retry_from_ui(
         delivery = await service.retry_delivery(db, delivery_id, client)
     except service.DeliveryNotFound:
         return templates.TemplateResponse(request, "not_found.html", {}, status_code=404)
-    except service.RetryNotAllowed as exc:
+    except (service.RetryNotAllowed, service.SensitiveHeadersUnavailable) as exc:
         error = str(exc)
         delivery = service.get_delivery(db, delivery_id)
     template = "partials/detail_body.html" if _is_htmx(request) else "detail.html"

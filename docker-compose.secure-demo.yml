@@ -1,0 +1,15 @@
+# Overlay for the secure-delivery demo: turns on HMAC signing in the inspector and signature
+# verification in the mock receiver, with the same SYNTHETIC demo secret.
+#
+#   docker compose -f docker-compose.yml -f docker-compose.secure-demo.yml up --build
+#
+# Never reuse this value anywhere real — production secrets belong in your runtime environment only.
+services:
+  inspector:
+    environment:
+      CALLBACK_SIGNING_ENABLED: "true"
+      CALLBACK_SIGNING_SECRET: demo-only-synthetic-signing-secret
+  receiver:
+    environment:
+      SIGNATURE_SECRET: demo-only-synthetic-signing-secret
+      SIGNATURE_TOLERANCE_SECONDS: "300"

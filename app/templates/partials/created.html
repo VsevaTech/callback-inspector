@@ -3,6 +3,7 @@
   Delivery <a href="/deliveries/{{ delivery.id }}" class="mono">{{ delivery.id[:12] }}</a>
   — <span class="badge {{ delivery.status.value }}">{{ delivery.status.value }}</span>
   {% if delivery.last_http_status %} HTTP {{ delivery.last_http_status }}{% endif %}
+  {% if replay %}<br><span class="mono">Idempotent replay — existing delivery returned, nothing was sent again.</span>{% endif %}
   {% if delivery.last_error %}<br><span class="mono">{{ delivery.last_error }}</span>{% endif %}
 </div>
 {% include "partials/form.html" %}

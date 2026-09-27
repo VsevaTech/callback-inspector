@@ -5,10 +5,10 @@ from __future__ import annotations
 import os
 from collections.abc import Generator
 
-from sqlalchemy import create_engine
+from sqlalchemy import Engine, create_engine
 from sqlalchemy.orm import DeclarativeBase, Session, sessionmaker
 
-from app.config import settings
+from app import config
 
 
 class Base(DeclarativeBase):
@@ -25,15 +25,19 @@ def _make_engine(url: str):
     return create_engine(url, connect_args=connect_args, future=True)
 
 
-engine = _make_engine(settings.database_url)
+engine = _make_engine(config.settings.database_url)
 SessionLocal = sessionmaker(bind=engine, autoflush=False, autocommit=False, expire_on_commit=False)
 
 
-def init_db() -> None:
+def init_db(bind: Engine | None = None) -> None:
+    """Create missing tables, then upgrade an existing database in place (see app/migrations.py)."""
     # Import models so they are registered on Base.metadata.
     from app import models  # noqa: F401
+    from app.migrations import run_migrations
 
-    Base.metadata.create_all(bind=engine)
+    target = bind if bind is not None else engine
+    Base.metadata.create_all(bind=target)
+    run_migrations(target)
 
 
 def get_db() -> Generator[Session, None, None]:

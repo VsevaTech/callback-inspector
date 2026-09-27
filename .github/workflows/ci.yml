@@ -41,3 +41,19 @@ jobs:
           done
           bash examples/demo.sh
           docker compose down -v
+      - name: Secure delivery demo (HMAC valid, secrets redacted, idempotent replay, 409 conflict)
+        run: |
+          COMPOSE="docker compose -f docker-compose.yml -f docker-compose.secure-demo.yml"
+          $COMPOSE up -d
+          for i in $(seq 1 30); do
+            curl -fs http://localhost:8000/health && curl -fs http://localhost:8001/health && break
+            sleep 1
+          done
+          bash examples/demo.sh                    # 503 -> retry -> 200 still works with signing on
+          bash examples/demo_secure_delivery.sh
+      - name: Show logs on failure
+        if: failure()
+        run: docker compose -f docker-compose.yml -f docker-compose.secure-demo.yml logs --no-color
+      - name: Tear down
+        if: always()
+        run: docker compose -f docker-compose.yml -f docker-compose.secure-demo.yml down -v

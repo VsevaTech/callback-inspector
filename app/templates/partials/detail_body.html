@@ -11,6 +11,13 @@
     <dt>Last error</dt><dd class="mono">{{ delivery.last_error or "—" }}</dd>
     <dt>Timeout</dt><dd class="mono">{{ delivery.timeout_seconds }} s</dd>
   </dl>
+  {% set sec = security_summary(delivery) %}
+  <h3 style="margin-top:16px">Security</h3>
+  <dl class="kv" id="security-panel">
+    <dt>Sensitive headers</dt><dd class="mono">{% if sec.redacted_headers %}redacted ({{ sec.redacted_headers | join(", ") }}){% else %}none present (redaction active){% endif %}</dd>
+    <dt>Callback signing</dt><dd class="mono">{{ sec.signing }}</dd>
+    <dt>Idempotency key</dt><dd class="mono" title="{{ sec.idempotency_key or '' }}">{{ sec.idempotency_key | shorten if sec.idempotency_key else "—" }}</dd>
+  </dl>
   <details><summary>Configured headers</summary><pre class="mono">{{ delivery.headers | pretty_json }}</pre></details>
   <details open><summary>Payload</summary><pre class="mono">{{ delivery.payload | pretty_json }}</pre></details>
 
@@ -32,6 +39,7 @@
       <span class="mono muted">{{ a.latency_ms if a.latency_ms is not none else "—" }} ms</span>
     </h3>
     {% if a.error %}<div class="error mono">{{ a.error }}</div>{% endif %}
+    {% if a.signature_algorithm %}<div class="muted mono">Signature: generated ({{ a.signature_algorithm }}) · Timestamp: {{ a.signature_timestamp | ts_iso }}</div>{% endif %}
     <details><summary>Request → {{ a.method }} {{ a.destination_url }}</summary>
       <pre class="mono">{{ a.request_headers | pretty_json }}</pre>
       <pre class="mono">{{ a.request_body | pretty_json }}</pre>

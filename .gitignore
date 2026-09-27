@@ -5,6 +5,6 @@ __pycache__/
 data/
 *.db
 .env
-.venv/
+.venv*/
 
 app/static/htmx.min.js

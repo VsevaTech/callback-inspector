@@ -1,6 +1,6 @@
 [project]
 name = "callback-inspector"
-version = "0.1.0"
+version = "0.2.0"
 description = "Outbound callback proxy with full delivery history and manual retry — proof for 'we sent it, they say they didn't get it'."
 readme = "README.md"
 requires-python = ">=3.11"
